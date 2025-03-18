@@ -12,8 +12,7 @@ class LLMConfig(BaseSettingsWrapper):
     """
 
     OPENAI_API_KEY: Optional[str] = None
-    MODEL_CLASS: Optional[str] = LLMEnums.openai.value
-    MODEL_NAME: Optional[str] = OpenAIEnums.gpt_4o_mini.value
+    MODEL_NAME: Optional[str] = OpenAIEnums.gpt_4.value
 
 
 llm_config = LLMConfig()
