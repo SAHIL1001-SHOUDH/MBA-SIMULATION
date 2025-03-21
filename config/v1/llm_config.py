@@ -1,8 +1,8 @@
 from typing import Optional
 
-from MBA_SIMULATION.config.v1 import BaseSettingsWrapper
+from config.v1 import BaseSettingsWrapper
 
-from MBA_SIMULATION.utils.v1.enums import LLMEnums, OpenAIEnums
+from utils.v1.enums import OpenAIEnums
 
 
 class LLMConfig(BaseSettingsWrapper):
@@ -12,7 +12,7 @@ class LLMConfig(BaseSettingsWrapper):
     """
 
     OPENAI_API_KEY: Optional[str] = None
-    MODEL_NAME: Optional[str] = OpenAIEnums.gpt_4.value
+    MODEL_NAME: Optional[str] = OpenAIEnums.gpt_o3_mini.value
 
 
 llm_config = LLMConfig()

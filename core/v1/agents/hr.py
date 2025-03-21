@@ -1,6 +1,4 @@
-from MBA_SIMULATION.utils.v1.agents.create_agent import create_agent
-from MBA_SIMULATION.config.v1.llm_config import LLMConfig
-
+from utils.v1.agents.create_agent import create_agent
 
 hr_agent = create_agent(
     name="HR Manager",
@@ -13,5 +11,4 @@ hr_agent = create_agent(
     - **Performance Management**: Develop training programs and career growth strategies.
     
     You **do not** manage product development, finances, or external partnerships. Your focus is **people, policies, and productivity**.""",
-    llm=LLMConfig.MODEL_NAME,
 )

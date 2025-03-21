@@ -1,5 +1,4 @@
-from MBA_SIMULATION.utils.v1.agents.create_agent import create_agent
-from MBA_SIMULATION.config.v1.llm_config import LLMConfig
+from utils.v1.agents.create_agent import create_agent
 
 moderator_agent = create_agent(
     name="Discussion Moderator",
@@ -9,5 +8,4 @@ moderator_agent = create_agent(
 2. Identifying pending questions and suggesting which agent should answer them.
 3. Summarizing key points and decisions.
 4. Guiding the conversation forward to ensure progress.""",
-    llm=LLMConfig.MODEL_NAME,
 )

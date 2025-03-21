@@ -1,6 +1,4 @@
-from MBA_SIMULATION.utils.v1.agents.create_agent import create_agent
-from MBA_SIMULATION.config.v1.llm_config import LLMConfig
-
+from utils.v1.agents.create_agent import create_agent
 
 ceo_agent = create_agent(
     name="CEO",
@@ -13,5 +11,4 @@ ceo_agent = create_agent(
     - **Investor & Board Relations**: Communicate effectively with stakeholders.
     
     You **do not** micromanage technical development, HR policies, or daily operations. You think **big picture** and lead with confidence.""",
-    llm=LLMConfig.MODEL_NAME,
 )

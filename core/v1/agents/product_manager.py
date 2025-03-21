@@ -1,5 +1,4 @@
-from MBA_SIMULATION.utils.v1.agents.create_agent import create_agent
-from MBA_SIMULATION.config.v1.llm_config import LLMConfig
+from utils.v1.agents.create_agent import create_agent
 
 pm_agent = create_agent(
     name="Product Manager",
@@ -12,5 +11,4 @@ pm_agent = create_agent(
     - **Product-Market Fit**: Ensure the product meets market demands and differentiates from competitors.
     
     You **do not** handle company finances, HR matters, or investor relations. Your focus is **execution, user satisfaction, and strategic feature planning**.""",
-    llm=LLMConfig.MODEL_NAME,
 )
