@@ -1,23 +1,30 @@
-from langchain_core.messages import HumanMessage
+from core.v1.agents.moderate_agent import moderator_agent
 from models.v1.validations.conversation_state import ConversationState
 
-def User_Node(state: ConversationState) -> ConversationState:
-    """Process user interjection with proper message formatting"""
-    if not state.pending_user_message:
+
+def Human_Response_Node(state: ConversationState):
+    """
+    Process human interjections and manage conversation flow.
+    
+    Args:
+        state (ConversationState): Current conversation state
+    
+    Returns:
+        ConversationState: Updated conversation state
+    """
+    # If there are no interjections, return state unchanged
+    if not state.human_interjections:
         return state
 
-    # Create proper HumanMessage object instead of dictionary
-    user_message = HumanMessage(
-        content=state.pending_user_message,
-        additional_kwargs={
-            "participant_role": "user"
-        }
-    )
+    latest_interjection = state.human_interjections[-1]
 
-    return ConversationState(
-        messages=state.messages + [user_message],
-        current_speaker="user",
-        discussion_topic=state.discussion_topic,
-        pending_user_message=None,
-        user_interjection_allowed=False
-    )
+    response_integrator = moderator_agent
+    integration_response = response_integrator.invoke({
+        "input": f"Help integrate this human interjection into the conversation: {latest_interjection.message}",
+        "chat_history": state.messages
+    })
+
+    # Clear processed interjections
+    state.human_interjections = []
+
+    return state

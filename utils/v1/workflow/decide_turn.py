@@ -6,8 +6,8 @@ from models.v1.validations.conversation_state import ConversationState
 def decide_next_speaker(state: ConversationState) -> str:
     """Determine which agent should speak next based on the conversation context."""
 
-    if state.pending_user_message and state.user_interjection_allowed:
-        return "user"
+    if state.human_interjections:
+        return "human_response"
 
     moderator = moderator_agent
     chat_history = state.messages
@@ -59,5 +59,6 @@ def decide_next_speaker(state: ConversationState) -> str:
     valid_roles = {"ceo", "product_manager", "hr","end_discussion"}
     
     if first_word in valid_roles:
+        print(first_word)
         return first_word
     return "end_discussion"

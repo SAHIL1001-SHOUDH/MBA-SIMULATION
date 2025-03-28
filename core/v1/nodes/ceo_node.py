@@ -4,18 +4,28 @@ from models.v1.validations.conversation_state import ConversationState
 
 def Ceo_Node(state: ConversationState) -> ConversationState:
     """Process CEO's response with proper state management."""
+
+
+    chat_history = [
+        {
+            "role": msg.get("role", ""),
+            "content": msg.get("content", ""),
+            "type": msg.get("type", "")
+        } for msg in state.messages
+    ]
+
+    current_topic = state.discussion_topic
+    ceo_prompt = f"""
+    Current discussion topic: {current_topic}
     
-    # Validate input state
-    if not state.messages:
-        raise ValueError("CEO cannot respond to empty conversation history")
-    
+    Provide a strategic response considering the full conversation history.
+    Contribute insights relevant to the ongoing discussion.
+    """
+
     try:
-        # Access message content using .content attribute
-        last_message_content = state.messages[-1].content
-        
         response = ceo_agent.invoke({
-            "input": f"Discussion Topic: {state.discussion_topic}\nLast Message: {last_message_content}",
-            "chat_history": [msg.content for msg in state.messages]  # Convert to simple strings
+            "input": ceo_prompt,
+            "chat_history": chat_history
         })
         
         # Extract content from different response types
@@ -25,22 +35,21 @@ def Ceo_Node(state: ConversationState) -> ConversationState:
             response_content = response.get("output", "No response generated")
         else:
             response_content = str(response)
+
+        state.messages.append({
+            "role": "assistant",
+            "content": response_content,
+            "type": "ceo_response"
+        })
+
+        state.current_speaker = "ceo"
             
     except Exception as e:
-        response_content = f"CEO Error: {str(e)}"
-    
-    # Use AIMessage for CEO responses instead of HumanMessage
-    formatted_message = AIMessage(
-        content=response_content,
-        additional_kwargs={
-            "participant_role": "ceo" 
+        error_message = {
+            "role": "system",
+            "content": f"CEO response generation error: {str(e)}",
+            "type": "error"
         }
-    )
-    
-    return ConversationState(
-        messages=state.messages + [formatted_message],
-        current_speaker="ceo",
-        discussion_topic=state.discussion_topic,
-        pending_user_message=state.pending_user_message,
-        user_interjection_allowed=True
-    )
+        state.messages.append(error_message)
+
+    return state

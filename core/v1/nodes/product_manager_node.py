@@ -2,45 +2,53 @@ from langchain.schema import AIMessage
 from core.v1.agents.product_manager import pm_agent
 from models.v1.validations.conversation_state import ConversationState
 
-
 def Product_Manager_Node(state: ConversationState) -> ConversationState:
-    """Process Product Manager's response with proper state management and error handling."""
+    """Process Product Manager's response with proper state management."""
 
-    if not state.messages:
-        raise ValueError("Product Manager cannot respond to empty conversation history")
+    chat_history = [
+        {
+            "role": msg.get("role", ""),
+            "content": msg.get("content", ""),
+            "type": msg.get("type", "")
+        } for msg in state.messages
+    ]
+
+    current_topic = state.discussion_topic
+    pm_prompt = f"""
+    Current discussion topic: {current_topic}
     
+    Provide a product-related response considering the full conversation history.
+    Contribute insights relevant to product strategy, features, or development.
+    """
+
     try:
-
-        last_message = state.messages[-1]
-        last_message_content = last_message.content
-
         response = pm_agent.invoke({
-            "input": f"Discussion Topic: {state.discussion_topic}\nLast Message: {last_message_content}",
-            "chat_history": [msg.content for msg in state.messages]
+            "input": pm_prompt,
+            "chat_history": chat_history
         })
-
+        
+        # Extract content from response
         if isinstance(response, AIMessage):
             response_content = response.content
         elif isinstance(response, dict):
-            response_content = response.get("output", "No PM response generated")
+            response_content = response.get("output", "No PM response generated")  # KEY CHANGED HERE
         else:
             response_content = str(response)
+
+        state.messages.append({
+            "role": "assistant",
+            "content": response_content,
+            "type": "product_manager_response"
+        })
+
+        state.current_speaker = "product_manager"
             
     except Exception as e:
-        response_content = f"Product Manager Error: {str(e)}"
-
-    formatted_message = AIMessage(
-        content=response_content,
-        additional_kwargs={
-            "participant_role": "product_manager"  # Store role in metadata
+        error_message = {
+            "role": "system",
+            "content": f"Product Manager response generation error: {str(e)}",
+            "type": "error"
         }
-    )
-    
-    return ConversationState(
-        # Wrap in list to properly extend messages sequence
-        messages=state.messages + [formatted_message],
-        current_speaker="product_manager",
-        discussion_topic=state.discussion_topic,
-        pending_user_message=state.pending_user_message,
-        user_interjection_allowed=True
-    )
+        state.messages.append(error_message)
+
+    return state

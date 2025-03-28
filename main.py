@@ -1,94 +1,74 @@
+from utils.v1.workflow.conversation_manager import ConversationManager
 import gradio as gr
-from langchain_core.messages import SystemMessage
-from models.v1.validations.conversation_state import ConversationState
-from core.v1.graph.discussion_flow import build_conversation_graph
-from utils.v1.workflow.user_interjection import add_user_interjection
-from utils.v1.workflow.process_conversation import process_conversation_step
+import logging
 
+manager = None
 
-
-def run_conversation(topic: str, interjection: str = None, state: dict = None):
-    """Run conversation with proper state initialization"""
-    # Initialize state if needed
-    if state is None or not state.get("stream"):
-        initial_state = ConversationState(
-            messages=[SystemMessage(content=f"Discussion started on {topic}")],
-            current_speaker="moderator",
-            discussion_topic=topic,
-            user_interjection_allowed=False
-        )
-        return {
-            "stream": build_conversation_graph().stream(initial_state),
-            "messages": [],
-            "step_count": 0,
-            "state": initial_state
-        }, "", False
-
-    stream = state["stream"]
-    messages = state["messages"]
-    step_count = state["step_count"]
-    current_state = state["state"]
-
-    if interjection and current_state.user_interjection_allowed:
-        current_state = add_user_interjection(current_state, interjection)
-        state["state"] = current_state
-
+def start_conversation(topic):
+    global manager
     try:
-        for step, new_step_count, output, allow_interrupt in process_conversation_step(
-            stream, step_count, messages
-        ):
-            state["step_count"] = new_step_count
-            state["state"] = step[list(step.keys())[0]]
-            return state, output, allow_interrupt
+        manager = ConversationManager(topic)
+        initial_response = manager.start_conversation()
+        return initial_response
+    except Exception as e:
+        return f"Error starting conversation: {e}"
+
+def continue_conversation():
+    global manager
+    if manager is None:
+        return "No active conversation. Please start a conversation first."
+    
+    try:
+        return next(manager.conversation_generator)
     except StopIteration:
-        return state, output, False
+        return "Conversation Ended."
+    except Exception as e:
+        return f"Error continuing conversation: {e}"
 
-    return state, output, False
-
-def start_conversation(topic, state):
-    new_state, _, _ = run_conversation(topic)
-    return new_state
-
-def process_next_step(state):
-    if state and state.get("stream"):
-        updated_state, output, allow_interrupt = run_conversation(None, state=state)
-        return updated_state, output, gr.update(visible=allow_interrupt)
-    return state, "", False
-
-iface = gr.Blocks(title="State-Managed Conversation")
-
-with iface:
-    gr.Markdown("## 💼 Executive Discussion Panel")
-    state = gr.State()
+def handle_human_input(message, current_log):
+    global manager
+    if manager is None:
+        return "No active conversation. Please start a conversation first."
     
-    with gr.Row():
-        topic_input = gr.Textbox(label="Discussion Topic", value="Q3 Market Expansion Strategy")
-        start_btn = gr.Button("Start Meeting", variant="primary")
-    
-    interjection_input = gr.Textbox(label="Your Input", visible=False)
-    interjection_btn = gr.Button("Send", variant="secondary", visible=False)
-    
-    conversation_log = gr.Textbox(label="Meeting Transcript", interactive=False)
-    
-    start_btn.click(
-        start_conversation,
-        [topic_input, state],
-        [state]
-    ).then(
-        process_next_step,
-        [state],
-        [state, conversation_log, interjection_input]
-    ).then(
-        process_next_step,
-        [state],
-        [state, conversation_log, interjection_input],
-    )
-    
-    interjection_btn.click(
-        process_next_step,
-        [state, interjection_input],
-        [state, conversation_log, interjection_input]
-    )
+    try:
+        human_response = f"You: {message}"
+        
+        # Handle human interjection and get agent response
+        agent_response = manager.handle_human_interjection(message)
+        
+        # Try to get updated log from conversation generator
+        try:
+            updated_log = next(manager.conversation_generator)
+        except StopIteration:
+            updated_log = "Conversation Ended."
+        
+        # Combine logs
+        combined = current_log + "\n" + human_response + "\n" + f"Agent: {agent_response}" + "\n" + updated_log
+        
+        return combined
+    except Exception as e:
+        return f"Error handling input: {e}"
 
-if __name__ == "__main__":
-    iface.launch()
+# Create Gradio interface
+with gr.Blocks() as demo:
+    gr.Markdown("## Multi-Agent Discussion")
+    
+    # Inputs
+    topic_input = gr.Textbox(label="Enter Discussion Topic", interactive=True)
+    interjection_input = gr.Textbox(label="Your Interjection", interactive=True)
+    
+    # Buttons
+    start_btn = gr.Button("Start Conversation")
+    interject_btn = gr.Button("Interject")
+    continue_btn = gr.Button("Continue Conversation")
+    
+    # Conversation log
+    chatbox = gr.Textbox(label="Conversation Log", interactive=False, lines=15)
+    
+    # Event handlers
+    start_btn.click(start_conversation, inputs=topic_input, outputs=chatbox)
+    interject_btn.click(handle_human_input, inputs=[interjection_input, chatbox], outputs=chatbox)
+    continue_btn.click(continue_conversation, inputs=None, outputs=chatbox)
+
+# Launch the demo
+demo.launch()
