@@ -1,9 +1,11 @@
-from models.v1.validations.conversation_state import ConversationState
-from utils.v1.shared_resources.message_queue import send_message
 from utils.v1.shared_resources.human_flag import interjection_control
-
-def Moderator_Node(state: ConversationState) -> ConversationState:
-    """Process moderator's decision with proper state management."""
+from utils.v1.shared_resources.message_queue import send_message
+def execute_with_interruption_check(agent_function, state, agent_name):
+    """
+    Wrapper that allows for interruption during agent execution.
+    If interrupted, it will update the state and return early.
+    """
+    # Check for interruption before processing
     if interjection_control.check_for_interruption():
         user_input = interjection_control.get_and_clear_interruption()
         if user_input:
@@ -14,7 +16,7 @@ def Moderator_Node(state: ConversationState) -> ConversationState:
                 "type": "interjection"
             })
             state.interrupted = True
+            return state
     
-    # Reset the interruption flag
-    state.interrupted = False
-    return state
+    # Execute the normal agent function
+    return agent_function(state)

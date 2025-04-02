@@ -1,10 +1,10 @@
 from langchain.schema import AIMessage
 from core.v1.agents.hr import hr_agent
 from models.v1.validations.conversation_state import ConversationState
-
-def Hr_Node(state: ConversationState) -> ConversationState:
-    """Process HR's response with proper state management."""
-
+from utils.v1.shared_resources.message_queue import send_message
+from utils.v1.workflow.interruption_check import execute_with_interruption_check
+def _hr_function(state: ConversationState) -> ConversationState:
+    """The actual HR agent function that processes the state."""
     chat_history = [
         {
             "role": msg.get("role", ""),
@@ -17,8 +17,8 @@ def Hr_Node(state: ConversationState) -> ConversationState:
     hr_prompt = f"""
     Current discussion topic: {current_topic}
     
-    Provide an HR-related response considering the full conversation history.
-    Contribute insights relevant to team dynamics, personnel, or organizational structure.
+    Provide an HR perspective considering the full conversation history.
+    Address organizational and people-related aspects of the discussion.
     """
 
     try:
@@ -31,11 +31,17 @@ def Hr_Node(state: ConversationState) -> ConversationState:
         if isinstance(response, AIMessage):
             response_content = response.content
         elif isinstance(response, dict):
-            response_content = response.get("output", "No HR response generated")
+            response_content = response.get("output", "No response generated")
         else:
             response_content = str(response)
 
         state.messages.append({
+            "role": "assistant",
+            "content": response_content,
+            "type": "hr_response"
+        })
+
+        send_message({
             "role": "assistant",
             "content": response_content,
             "type": "hr_response"
@@ -50,5 +56,10 @@ def Hr_Node(state: ConversationState) -> ConversationState:
             "type": "error"
         }
         state.messages.append(error_message)
+        send_message(error_message)
 
     return state
+
+# Wrap HR function with interruption check
+def Hr_Node(state: ConversationState) -> ConversationState:
+    return execute_with_interruption_check(_hr_function, state, "hr")

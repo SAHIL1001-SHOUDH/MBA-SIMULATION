@@ -1,11 +1,10 @@
 from langchain.schema import AIMessage
 from core.v1.agents.ceo import ceo_agent
 from models.v1.validations.conversation_state import ConversationState
-
-def Ceo_Node(state: ConversationState) -> ConversationState:
-    """Process CEO's response with proper state management."""
-
-
+from utils.v1.shared_resources.message_queue import send_message
+from utils.v1.workflow.interruption_check import execute_with_interruption_check
+def _ceo_function(state: ConversationState) -> ConversationState:
+    """The actual CEO agent function that processes the state."""
     chat_history = [
         {
             "role": msg.get("role", ""),
@@ -42,6 +41,12 @@ def Ceo_Node(state: ConversationState) -> ConversationState:
             "type": "ceo_response"
         })
 
+        send_message({
+            "role": "assistant",
+            "content": response_content,
+            "type": "ceo_response"
+        })
+
         state.current_speaker = "ceo"
             
     except Exception as e:
@@ -51,5 +56,10 @@ def Ceo_Node(state: ConversationState) -> ConversationState:
             "type": "error"
         }
         state.messages.append(error_message)
+        send_message(error_message)
 
     return state
+
+# Wrap CEO function with interruption check
+def Ceo_Node(state: ConversationState) -> ConversationState:
+    return execute_with_interruption_check(_ceo_function, state, "ceo")

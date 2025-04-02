@@ -1,20 +1,24 @@
 from langchain.schema import AIMessage
+from langgraph.graph import END
 from core.v1.agents.moderate_agent import moderator_agent
 from models.v1.validations.conversation_state import ConversationState
 
-
 def decide_next_speaker(state: ConversationState) -> str:
     """Determine which agent should speak next based on the conversation context."""
+    # If we were interrupted, force next turn to go through moderator again
+    if state.interrupted:
+        return "moderator"
+    
 
-    if state.human_interjections:
-        return "human_response"
-
+    # Use your moderator agent to decide the next speaker
     moderator = moderator_agent
     chat_history = state.messages
     current_topic = state.discussion_topic
     last_speaker = state.current_speaker
 
-    # Create a prompt that helps the moderator decide the next speaker
+    print("current topic",current_topic)
+    print("last speaker",last_speaker)
+
     decision_prompt = f"""
         Current discussion topic: {current_topic}
         Last speaker: {last_speaker}
@@ -34,9 +38,8 @@ def decide_next_speaker(state: ConversationState) -> str:
         3. If unsure, default to "end_discussion"
 
         Your response must be exactly one word from the valid options list.
-        """
+    """
 
-    # Ask the moderator LLM who should speak next
     routing_response = moderator.invoke(
         {
             "input": (
@@ -46,6 +49,7 @@ def decide_next_speaker(state: ConversationState) -> str:
             "chat_history": chat_history,
         }
     )
+    print("response" , routing_response)
 
     if isinstance(routing_response, AIMessage):
         next_speaker = routing_response.content.lower().strip()
@@ -54,11 +58,10 @@ def decide_next_speaker(state: ConversationState) -> str:
     else:
         next_speaker = str(routing_response).lower().strip()
 
-
     first_word = next_speaker.split()[0] if next_speaker else ""
-    valid_roles = {"ceo", "product_manager", "hr","end_discussion"}
+    valid_roles = {"ceo", "product_manager", "hr", "end_discussion"}
+    print(first_word)
     
     if first_word in valid_roles:
-        print(first_word)
         return first_word
     return "end_discussion"
